@@ -17,8 +17,8 @@
 (defn put! [action]
   (a/put! top-chan action))
 
-(defn fork! [task]
-  (task #js {}))
+(defn fork! [task & args]
+  (apply task (js/Object.) args))
 
 (declare promise-to-chan)
 (defn call! [job & args]
