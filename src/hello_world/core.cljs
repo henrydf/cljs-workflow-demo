@@ -1,11 +1,9 @@
 (ns hello-world.core
   (:require [reagent.core :as r]
             [react :as react]
-            [promesa.core :as p]
             [cljs.core.async :as a]
-            [hello-world.workflow :as wf]))
-
-(println "Hello world!")
+            [hello-world.workflow :as wf]
+            [hello-world.util :refer [qset qget]]))
 
 (defonce service-url "http://39.98.137.244:7777/get-sdk-url/sdk.js")
 (defonce scene-url "http://39.98.137.244:7777/demo/scene/scene.json")
@@ -36,30 +34,19 @@
        (.appendChild js/document.body script)))))
 
 
-(defn init-task [state]
+(defn init-task [$]
   (a/go
-    (->> (wf/call! js-fetch service-url) a/<! (swap! state assoc :sdk-url))
-    (->> (wf/call! import-script (-> @state :sdk-url .-url)) a/<! (swap! state assoc :sdk))
-    (->> (wf/call! (-> (:sdk @state) (.init "3d-container" scene-url)) a/<!))
-    (->> (wf/call! (.loadDynamicMaterial (:sdk @state) dynamic-material-url)) a/<!)
-    (->> (wf/call! (.updateBaseTexture (:sdk @state) demo-texture-url 4 1)) a/<!)
-    (->> (wf/call! (.loadModels (:sdk @state) model-urls)) a/<! (swap! state assoc :models))
-    (.forEach (:models @state)
-              (fn [m]
-                (.showObj (:sdk @state) (.-id m) (.-key m))
-                (.freshFabric (:sdk @state) (.-id m) (.-key m))))
-    (prn @state)))
+    (->> (wf/call! js-fetch service-url) a/<! (qset $ :sdk-url))
+    (->> (wf/call! import-script (qget $ :sdk-url :url)) a/<! (qset $ :sdk))
+    (->> (wf/call! (.. $ -sdk (init "3d-container" scene-url)) a/<!))
+    (->> (wf/call! (.. $ -sdk (loadDynamicMaterial dynamic-material-url))) a/<!)
+    (->> (wf/call! (.. $ -sdk (updateBaseTexture demo-texture-url 4 0))) a/<!)
+    (->> (wf/call! (.. $ -sdk (loadModels model-urls))) a/<! (qset $ :models))
+    (.. $ -models (forEach (fn [m]
+                             (.showObj (.-sdk $) (.-id m) (.-key m))
+                             (.freshFabric (.-sdk $) (.-id m) (.-key m)))))
+    (prn $)))
 (wf/fork! init-task)
-
-; (a/go
-;   (-> (wf/take! :sth-in-futher)
-;       a/<!
-;       prn))
-
-; (-> (p/delay 2000)
-;     (p/then (fn [] (wf/put! {:type :sth-in-futher
-;                              :data 123}))))
-
 
 (defn threed-container []
   (react/useEffect (fn []
